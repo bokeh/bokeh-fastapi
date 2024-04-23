@@ -5,8 +5,8 @@ dependencies:
   - python =3.9
   - pip
   - pip:
-      - bokeh
+      - bokeh ==3.4.*
       - tornado
       - fastapi
-      - uvicorn
-      - panel
+      - uvicorn[standard]
+      - panel ==1.4.*
