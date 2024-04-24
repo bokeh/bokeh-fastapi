@@ -39,6 +39,8 @@ from bokeh.util.token import (
 )
 from tornado.ioloop import IOLoop
 
+from typing import Optional
+
 
 class DocRouter:
 
@@ -53,7 +55,7 @@ class DocRouter:
             if context.io_loop is None:
                 context._loop = IOLoop.current()
 
-    async def _get_session(self, app: str, request: Request, session_id: str | None) -> ServerSession:
+    async def _get_session(self, app: str, request: Request, session_id: Optional[str]) -> ServerSession:
         if session_id is None:
             session_id = generate_session_id(secret_key=None, signed=False)
         payload = {
@@ -75,14 +77,14 @@ class DocRouter:
         )
         return session
 
-    def resources(self, absolute_url: str | None = None) -> Resources:
+    def resources(self, absolute_url: Optional[str] = None) -> Resources:
         mode = settings.resources(default="server")
         if mode == "server":
             root_url = urljoin(absolute_url, self._prefix) if absolute_url else self._prefix
             return Resources(mode="server", root_url=root_url, path_versioner=StaticHandler.append_version)
         return Resources(mode=mode)
 
-    async def get(self, app: str, request: Request, bokeh_session_id: str | None = None) -> HTMLResponse:
+    async def get(self, app: str, request: Request, bokeh_session_id: Optional[str] = None) -> HTMLResponse:
         if f'/{app}' not in self.application_contexts:
             return
         session = await self._get_session(app, request, bokeh_session_id)
