@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import calendar
+import contextlib
 import datetime as dt
 import json
 import os
@@ -34,7 +35,7 @@ from bokeh.util.token import (
     get_token_payload,
 )
 
-from fastapi import APIRouter, FastAPI, Request, WebSocket
+from fastapi import APIRouter, FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -182,16 +183,19 @@ async def websocket_handler(
     msg = connection.protocol.create("ACK")
     await ws_handler.send_message(msg)
 
-    while True:
-        ws_msg = await socket.receive()
+    with contextlib.suppress(WebSocketDisconnect):
+        while True:
+            fragment = await socket.receive_text()
+            message = await receiver.consume(fragment)
 
-        if "text" in ws_msg:
-            fragment = ws_msg["text"]
-        message = await receiver.consume(fragment)
-        if message:
+            if not message:
+                continue
+
             work = await handler.handle(message, connection)
-            if work:
-                await ws_handler.send_message(work)
+            if not work:
+                continue
+
+            await ws_handler.send_message(work)
 
 
 def _eval_panel(obj, doc: Document):
