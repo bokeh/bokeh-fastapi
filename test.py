@@ -244,7 +244,7 @@ def add_application_routes(server, apps, prefix='/'):
             StaticFiles(directory=ext_path),
             name=ext_name,
         )
-    server.mount("/static", StaticFiles(directory=settings.bokehjsdir()), name="static")
+    server.mount("/static", StaticFiles(directory=settings.bokehjs_path()), name="static")
 
     # Mount application router
     server.include_router(router.router)
