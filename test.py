@@ -181,14 +181,30 @@ async def websocket_handler(socket: Websocket, application_context: ApplicationC
             work = await handler.handle(message, connection)
             if work:
                 await ws_handler.send_message(work)
-        
+
+from panel.io.document import extra_socket_handlers
+def dispatch_fastapi(conn, events=None, msg=None):
+    if msg is None:
+        msg = conn.protocol.create('PATCH-DOC', events)
+    return [conn._socket.send_message(msg)]
+
+extra_socket_handlers[SocketHandler] = dispatch_fastapi
+
 def _eval_panel(obj, doc: Document):
-    if isinstance(obj, (FunctionType, MethodType)):
-        obj = obj()
-        
+    from panel.io.state import state
+    from panel.template import BaseTemplate
+
+    doc.on_event('document_ready', partial(state._schedule_on_load, doc))
+
     with set_curdoc(doc):
-        return as_panel(obj).server_doc(doc)
-   
+        if isinstance(obj, (FunctionType, MethodType)):
+            obj = obj()
+        if isinstance(obj, BaseTemplate):
+            doc = obj._modify_doc(None, None, doc, True)
+        else:
+            doc = as_panel(obj)._modify_doc(None, None, doc, False)
+        return doc
+
 def add_application_routes(server, apps, prefix='/'):
     contexts = {}
     for url, app in apps.items():       
@@ -218,8 +234,21 @@ def create_server(apps):
 
 def panel_app():
     import panel as pn
+    import html
     slider = pn.widgets.IntSlider(start=0, end=10, value=5)
     out = pn.pane.Markdown('### ' + pn.rx('*') * slider)
-    return pn.template.MaterialTemplate(main=[slider, out], title='Hello World')
+    print(1)
+    def callback():
+        print(2)
+        return pn.pane.HTML(
+            "<br>".join(
+                html.escape(line)
+                for line in [
+                        f"{pn.state.session_info=}",
+                        f"{pn.state.curdoc=!r}",
+                ]
+            )
+    )
+    return pn.template.MaterialTemplate(main=[slider, out, callback], title='Hello World')
 
 app = create_server({'/foo': panel_app})
