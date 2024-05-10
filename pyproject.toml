@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools-git-versioning", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bokeh_fastapi"
+dynamic = ["version"]
+description = "A web application using Bokeh and FastAPI"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+    { name = "Philipp Rudiger", email = "prudiger@anaconda.com" }
+]
+license = {file = "LICENSE.txt"}
+dependencies = [
+    "fastapi>=0.68.0",
+    "bokeh>=2.3.3",
+    "uvicorn>=0.15.0"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
