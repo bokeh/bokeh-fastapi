@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from typing import (
-    TYPE_CHECKING, Any, Mapping, Sequence,
-)
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 from urllib.parse import urljoin
 
 from bokeh.application import Application
@@ -23,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from .handler import DocHandler, WSHandler
 
 if TYPE_CHECKING:
-    from ..application.handlers.function import ModifyDoc
+    from bokeh.application.handlers.function import ModifyDoc
 
     from bokeh.protocol import Protocol
 
@@ -141,7 +139,7 @@ class BokehFastAPI:
             applications = Application(FunctionHandler(applications))
 
         if isinstance(applications, Application):
-            applications = {'/' : applications}
+            applications = {'/': applications}
         else:
             applications = dict(applications)
         

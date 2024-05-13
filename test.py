@@ -34,4 +34,4 @@ def panel_app(doc):
 handler = FunctionHandler(panel_app)
 application = Application(handler)
 
-app = BokehFastAPI(app).server
+app = BokehFastAPI(application).server
