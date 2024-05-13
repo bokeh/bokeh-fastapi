@@ -219,7 +219,7 @@ class BokehFastAPI:
         # Mount static file handlers
         for ext_name, ext_path in extension_dirs.items():
             server.mount(f"/static/extensions/{ext_name}", StaticFiles(directory=ext_path), name=ext_name)
-        server.mount("/static", StaticFiles(directory=settings.bokehjsdir()), name="static")
+        server.mount("/static", StaticFiles(directory=settings.bokehjs_path()), name="static")
 
     def new_connection(
         self, protocol: Protocol, socket: WSHandler,
