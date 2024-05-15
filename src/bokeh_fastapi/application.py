@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from typing import TYPE_CHECKING, Any, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Sequence, Optional
 from urllib.parse import urljoin
 
 from bokeh.application import Application
@@ -117,21 +117,21 @@ class BokehFastAPI:
     def __init__(
         self,
         applications: Mapping[str, Application | ModifyDoc] | Application | ModifyDoc,
-        server: FastAPI | None = None,
-        prefix: str | None = None,
-        extra_websocket_origins: Sequence[str] | None = None,
-        secret_key: bytes | None = settings.secret_key_bytes(),
+        server: Optional[FastAPI] = None,
+        prefix: Optional[str] = None,
+        extra_websocket_origins: Optional[Sequence[str]] = None,
+        secret_key: Optional[bytes] = settings.secret_key_bytes(),
         sign_sessions: bool = settings.sign_sessions(),
         generate_session_ids: bool = True,
         keep_alive_milliseconds: int = DEFAULT_KEEP_ALIVE_MS,
         check_unused_sessions_milliseconds: int = DEFAULT_CHECK_UNUSED_MS,
         unused_session_lifetime_milliseconds: int = DEFAULT_UNUSED_LIFETIME_MS,
-        index: str | None = None,
+        index: Optional[str] = None,
         xsrf_cookies: bool = False,
-        include_headers: list[str] | None = None,
-        include_cookies: list[str] | None = None,
-        exclude_headers: list[str] | None = None,
-        exclude_cookies: list[str] | None = None,
+        include_headers: Optional[list[str]] = None,
+        include_cookies: Optional[list[str]] = None,
+        exclude_headers: Optional[list[str]] = None,
+        exclude_cookies: Optional[list[str]] = None,
         session_token_expiration: int = DEFAULT_SESSION_TOKEN_EXPIRATION,
         **kwargs: Any
     ):
@@ -241,7 +241,7 @@ class BokehFastAPI:
         return self._websocket_origins
 
     @property
-    def secret_key(self) -> bytes | None:
+    def secret_key(self) -> Optional[bytes]:
         ''' A secret key for this Bokeh Server Tornado Application to use when
         signing session IDs, if configured.
 
@@ -249,7 +249,7 @@ class BokehFastAPI:
         return self._secret_key
 
     @property
-    def include_cookies(self) -> list[str] | None:
+    def include_cookies(self) -> Optional[list[str]]:
         ''' A list of request cookies to make available in the session
         context.
 
@@ -257,7 +257,7 @@ class BokehFastAPI:
         return self._include_cookies
 
     @property
-    def include_headers(self) -> list[str] | None:
+    def include_headers(self) -> Optional[list[str]]:
         ''' A list of request headers to make available in the session
         context.
 
@@ -265,14 +265,14 @@ class BokehFastAPI:
         return self._include_headers
 
     @property
-    def exclude_cookies(self) -> list[str] | None:
+    def exclude_cookies(self) -> Optional[list[str]]:
         ''' A list of request cookies to exclude in the session context.
 
         '''
         return self._exclude_cookies
 
     @property
-    def exclude_headers(self) -> list[str] | None:
+    def exclude_headers(self) -> Optional[list[str]]:
         ''' A list of request headers to exclude in the session context.
 
         '''
@@ -305,7 +305,7 @@ class BokehFastAPI:
         '''
         return self._session_token_expiration
 
-    def resources(self, absolute_url: str | None = None) -> Resources:
+    def resources(self, absolute_url: Optional[str] = None) -> Resources:
         mode = settings.resources(default="server")
         if mode == "server":
             root_url = urljoin(absolute_url, self._prefix) if absolute_url else self._prefix

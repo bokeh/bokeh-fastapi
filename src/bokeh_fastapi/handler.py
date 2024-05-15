@@ -5,7 +5,7 @@ import datetime as dt
 import json
 import logging
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, cast, Optional
 from urllib.parse import urlparse
 
 from fastapi import (
@@ -62,8 +62,8 @@ class SessionHandler:
     async def get_session(
         self,
         request: Request,
-        session_id: str | None,
-        token: str | None = None
+        session_id: Optional[str],
+        token: Optional[str] = None
     ) -> ServerSession:
         app = self.application
         if session_id is None:
@@ -117,7 +117,7 @@ class SessionHandler:
 
 class DocHandler(SessionHandler):
 
-    async def get(self, request: Request, bokeh_session_id: str | None = None) -> HTMLResponse:
+    async def get(self, request: Request, bokeh_session_id: Optional[str] = None) -> HTMLResponse:
         session = await self.get_session(request, bokeh_session_id)
         page = server_html_page_for_session(
             session,
@@ -212,7 +212,7 @@ class WSHandler(SessionHandler):
         except Exception:
             pass
 
-    async def _receive(self, fragment: str | bytes) -> Message[Any] | None:
+    async def _receive(self, fragment: str | bytes) -> Optional[Message[Any]]:
         # Receive fragments until a complete message is assembled
         try:
             message = await self.receiver.consume(fragment)
@@ -221,7 +221,7 @@ class WSHandler(SessionHandler):
             self._protocol_error(str(e))
             return None
 
-    async def _handle(self, message: Message[Any]) -> Any | None:
+    async def _handle(self, message: Message[Any]) -> Optional[Any]:
         # Handle the message, possibly resulting in work to do
         try:
             work = await self.handler.handle(message, self.connection)
