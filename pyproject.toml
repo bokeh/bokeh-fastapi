@@ -16,8 +16,13 @@ license = {file = "LICENSE.txt"}
 dependencies = [
     "fastapi>=0.68.0",
     "bokeh>=2.3.3",
-    "uvicorn>=0.15.0"
 ]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[project.optional-dependencies]
+
+serve = [
+    "uvicorn>=0.15.0",
+]
