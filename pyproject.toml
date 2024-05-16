@@ -9,7 +9,8 @@ description = "A web application using Bokeh and FastAPI"
 readme = "README.md"
 requires-python = ">=3.8"
 authors = [
-    { name = "Philipp Rudiger", email = "prudiger@anaconda.com" }
+    { name = "Philipp Rudiger", email = "prudiger@anaconda.com" },
+    { name = "Philip Meier", email = "pmeier@quansight.com" },
 ]
 license = {file = "LICENSE.txt"}
 dependencies = [
