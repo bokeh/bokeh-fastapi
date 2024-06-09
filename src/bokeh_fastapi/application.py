@@ -213,6 +213,7 @@ class BokehFastAPI:
             doc_handler = DocHandler(self, application_context=ctx)
             self.router.add_api_route(f'{route}', doc_handler.get, methods=['GET'])
             ws_handler = WSHandler(self, application_context=ctx)
+            route = route if route.endswith('/') else f'{route}/'
             self.router.add_websocket_route(f'{route}ws', ws_handler.ws_connect)
         server.include_router(self.router)
 
