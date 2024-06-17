@@ -107,8 +107,8 @@ class SessionHandler:
             expiration=300,
             extra_payload=payload
         )
-        if application_context.io_loop is None:
-            application_context._loop = IOLoop.current()
+        if self.application_context.io_loop is None:
+            self.application_context._loop = IOLoop.current()
         session = await self.application_context.create_session_if_needed(
             session_id, request, token
         )
