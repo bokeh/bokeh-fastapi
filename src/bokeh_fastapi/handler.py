@@ -56,8 +56,6 @@ class SessionHandler:
     def __init__(self, application: BokehFastAPI, application_context: ApplicationContext):
         self.application = application
         self.application_context = application_context
-        if application_context.io_loop is None:
-            application_context._loop = IOLoop.current()
 
     async def get_session(
         self,
@@ -109,6 +107,8 @@ class SessionHandler:
             expiration=300,
             extra_payload=payload
         )
+        if self.application_context.io_loop is None:
+            self.application_context._loop = IOLoop.current()
         session = await self.application_context.create_session_if_needed(
             session_id, request, token
         )
