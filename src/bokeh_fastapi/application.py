@@ -117,7 +117,7 @@ class BokehFastAPI:
     def __init__(
         self,
         applications: Mapping[str, Application | ModifyDoc] | Application | ModifyDoc,
-        server: Optional[FastAPI] = None,
+        app: Optional[FastAPI] = None,
         prefix: Optional[str] = None,
         extra_websocket_origins: Optional[Sequence[str]] = None,
         secret_key: Optional[bytes] = settings.secret_key_bytes(),
@@ -143,20 +143,20 @@ class BokehFastAPI:
         else:
             applications = dict(applications)
         
-        for url, app in applications.items():
-            if callable(app):
-                applications[url] = app = Application(FunctionHandler(app))
-            if all(not isinstance(handler, DocumentLifecycleHandler) for handler in app._handlers):
-                app.add(DocumentLifecycleHandler())
+        for url, application in applications.items():
+            if callable(application):
+                applications[url] = application = Application(FunctionHandler(application))
+            if all(not isinstance(handler, DocumentLifecycleHandler) for handler in application._handlers):
+                application.add(DocumentLifecycleHandler())
 
         # Wrap applications in ApplicationContext
         self._applications = {}
-        for url, app in applications.items():
-            self._applications[url] = ApplicationContext(app, url=url)
+        for url, application in applications.items():
+            self._applications[url] = ApplicationContext(application, url=url)
 
-        if server is None:
-            server = FastAPI()
-        self.server = server
+        if app is None:
+            app = FastAPI()
+        self.app = app
 
         if prefix is None:
             prefix = ""
@@ -215,12 +215,12 @@ class BokehFastAPI:
             ws_handler = WSHandler(self, application_context=ctx)
             route = route if route.endswith('/') else f'{route}/'
             self.router.add_websocket_route(f'{route}ws', ws_handler.ws_connect)
-        server.include_router(self.router)
+        app.include_router(self.router)
 
         # Mount static file handlers
         for ext_name, ext_path in extension_dirs.items():
-            server.mount(f"/static/extensions/{ext_name}", StaticFiles(directory=ext_path), name=ext_name)
-        server.mount("/static", StaticFiles(directory=settings.bokehjs_path()), name="static")
+            app.mount(f"/static/extensions/{ext_name}", StaticFiles(directory=ext_path), name=ext_name)
+        app.mount("/static", StaticFiles(directory=settings.bokehjs_path()), name="static")
 
     def new_connection(
         self, protocol: Protocol, socket: WSHandler,
