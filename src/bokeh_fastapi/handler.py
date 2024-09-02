@@ -4,16 +4,9 @@ import calendar
 import datetime as dt
 import json
 import logging
-
-from typing import TYPE_CHECKING, Any, cast, Optional
+from typing import TYPE_CHECKING, Any, Optional, cast
 from urllib.parse import urlparse
 
-from fastapi import (
-    Request, WebSocket, WebSocketDisconnect
-)
-from fastapi.responses import HTMLResponse
-
-from panel.io.server import server_html_page_for_session
 from bokeh.protocol import Protocol
 from bokeh.protocol.exceptions import MessageError, ProtocolError, ValidationError
 from bokeh.protocol.message import Message
@@ -30,82 +23,64 @@ from bokeh.util.token import (
     get_session_id,
     get_token_payload,
 )
+from fastapi import Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
+from panel.io.server import server_html_page_for_session
 from tornado.ioloop import IOLoop
+from tornado.httputil import HTTPServerRequest, HTTPHeaders
+
 
 if TYPE_CHECKING:
     from .application import BokehFastAPI
 
 
-#-----------------------------------------------------------------------------
-# Globals and constants
-#-----------------------------------------------------------------------------
-
 log = logging.getLogger(__name__)
 
-__all__ = (
-    'DocHandler',
-    'WSHandler',
-)
+__all__ = ["WSHandler", "DocumentHandler"]
 
-#-----------------------------------------------------------------------------
-# General API
-#-----------------------------------------------------------------------------
 
 class SessionHandler:
-
-    def __init__(self, application: BokehFastAPI, application_context: ApplicationContext):
+    def __init__(
+        self, application: BokehFastAPI, application_context: ApplicationContext
+    ):
         self.application = application
         self.application_context = application_context
 
     async def get_session(
-        self,
-        request: Request,
-        session_id: Optional[str],
-        token: Optional[str] = None
+        self, request: Request, session_id: Optional[str], token: Optional[str] = None
     ) -> ServerSession:
         app = self.application
         if session_id is None:
             session_id = generate_session_id(
-                secret_key=app.secret_key,
-                signed=app.sign_sessions
+                secret_key=app.secret_key, signed=app.sign_sessions
             )
-    
-        # Patch the request
-        request.protocol = 'http'
-        request.host = request.client.host
-        request.uri = request.url.path
 
-        if app.include_headers is None:
-            excluded_headers = (app.exclude_headers or [])
-            allowed_headers = [header for header in request.headers
-                               if header not in excluded_headers]
-        else:
-            allowed_headers = app.include_headers
-        headers = {k: v for k, v in request.headers.items()
-                   if k in allowed_headers}
+        request = HTTPServerRequest(
+            method=request.method,
+            uri=request.url.path,
+            headers=HTTPHeaders(request.headers),
+            host=request.client.host,
+        )
 
-        if app.include_cookies is None:
-            excluded_cookies = (app.exclude_cookies or [])
-            allowed_cookies = [cookie for cookie in request.cookies
-                               if cookie not in excluded_cookies]
-        else:
-            allowed_cookies = app.include_cookies
-        cookies = {k: v for k, v in request.cookies.items()
-                   if k in allowed_cookies}
+        headers = dict(request.headers)
+        cookies = dict(request.cookies)
 
-        if cookies and 'Cookie' in headers and 'Cookie' not in (app.include_headers or []):
+        if cookies and "Cookie" in headers:
             # Do not include Cookie header since cookies can be restored from cookies dict
-            del headers['Cookie']
+            del headers["Cookie"]
 
-        arguments = {} if request.query_params is None else request.query_params._dict
-        payload = {'headers': headers, 'cookies': cookies, 'arguments': arguments}
+        payload = {
+            "headers": headers,
+            "cookies": cookies,
+            "arguments": request.arguments,
+        }
         payload.update(self.application_context.application.process_request(request))
         token = generate_jwt_token(
             session_id,
             secret_key=app.secret_key,
             signed=app.sign_sessions,
             expiration=300,
-            extra_payload=payload
+            extra_payload=payload,
         )
         if self.application_context.io_loop is None:
             self.application_context._loop = IOLoop.current()
@@ -115,31 +90,33 @@ class SessionHandler:
         return session
 
 
-class DocHandler(SessionHandler):
-
-    async def get(self, request: Request, bokeh_session_id: Optional[str] = None) -> HTMLResponse:
+class DocumentHandler(SessionHandler):
+    async def get(
+        self, request: Request, bokeh_session_id: Optional[str] = None
+    ) -> HTMLResponse:
         session = await self.get_session(request, bokeh_session_id)
         page = server_html_page_for_session(
             session,
             resources=self.application.resources(),
             title=session.document.title,
             template=session.document.template,
-            template_variables=session.document.template_variables
+            template_variables=session.document.template_variables,
         )
         return HTMLResponse(page)
 
 
 class WSHandler(SessionHandler):
-    
-    def __init__(self, application: BokehFastAPI, application_context: ApplicationContext):
+    def __init__(
+        self, application: BokehFastAPI, application_context: ApplicationContext
+    ):
         super().__init__(application, application_context)
         self.receiver = None
         self.handler = None
         self.connection = None
-        self._socket = None
+        self._socket: WebSocket
 
     def check_origin(self, origin: str) -> bool:
-        ''' Implement a check_origin policy for Tornado to call.
+        """Implement a check_origin policy for Tornado to call.
 
         The supplied origin will be compared to the Bokeh server allowlist. If the
         origin is not allow, an error will be logged and ``False`` will be returned.
@@ -151,7 +128,7 @@ class WSHandler(SessionHandler):
         Returns:
             bool, True if the connection is allowed, False otherwise
 
-        '''
+        """
         parsed_origin = urlparse(origin)
         origin_host = parsed_origin.netloc.lower()
 
@@ -163,39 +140,49 @@ class WSHandler(SessionHandler):
         if allowed:
             return True
         else:
-            log.error("Refusing websocket connection from Origin '%s'; \
-                      use --allow-websocket-origin=%s or set BOKEH_ALLOW_WS_ORIGIN=%s to permit this; currently we allow origins %r",
-                      origin, origin_host, origin_host, allowed_hosts)
+            log.error(
+                (
+                    "Refusing websocket connection from Origin '%s'; "
+                    "use --allow-websocket-origin=%s or set BOKEH_ALLOW_WS_ORIGIN=%s to permit this; "
+                    "currently we allow origins %r"
+                ),
+                origin,
+                origin_host,
+                origin_host,
+                allowed_hosts,
+            )
             return False
 
-    async def ws_connect(self, websocket):
-        if len(websocket.scope['subprotocols']) == 2:
-            subprotocol, token = websocket.scope['subprotocols']
+    async def ws_connect(self, websocket: WebSocket) -> None:
+        if len(websocket.scope["subprotocols"]) == 2:
+            subprotocol, token = websocket.scope["subprotocols"]
         else:
             subprotocol = None
-        if subprotocol != 'bokeh' or token is None:
+        if subprotocol != "bokeh" or token is None:
             websocket.close()
-            raise RuntimeError("Subprotocol header is not 'bokeh' or token not provided")
+            raise RuntimeError(
+                "Subprotocol header is not 'bokeh' or token not provided"
+            )
 
         now = calendar.timegm(dt.datetime.now(tz=dt.timezone.utc).timetuple())
         payload = get_token_payload(token)
-        if 'session_expiry' not in payload:
+        if "session_expiry" not in payload:
             websocket.close()
             raise RuntimeError("Session expiry has not been provided")
-        elif now >= payload['session_expiry']:
+        elif now >= payload["session_expiry"]:
             websocket.close()
             raise RuntimeError("Token is expired.")
         elif not check_token_signature(
             token,
             signed=self.application.sign_sessions,
-            secret_key=self.application.secret_key
+            secret_key=self.application.secret_key,
         ):
             session_id = get_session_id(token)
             log.error("Token for session %r had invalid signature", session_id)
             raise ProtocolError("Invalid token signature")
 
         self._socket = websocket
-        await websocket.accept('bokeh')
+        await websocket.accept("bokeh")
 
         try:
             await self._async_open(websocket, token)
@@ -226,7 +213,11 @@ class WSHandler(SessionHandler):
         try:
             work = await self.handler.handle(message, self.connection)
             return work
-        except (MessageError, ProtocolError, ValidationError) as e: # TODO (other exceptions?)
+        except (
+            MessageError,
+            ProtocolError,
+            ValidationError,
+        ) as e:  # TODO (other exceptions?)
             self._internal_error(str(e))
             return None
 
@@ -238,18 +229,20 @@ class WSHandler(SessionHandler):
 
         return None
 
-    async def _receive_loop(self):
+    async def _receive_loop(self) -> None:
         while True:
             try:
                 ws_msg = await self._socket.receive()
             except WebSocketDisconnect as e:
-                log.info('WebSocket connection closed: code=%s, reason=%r', e.code, e.reason)
+                log.info(
+                    "WebSocket connection closed: code=%s, reason=%r", e.code, e.reason
+                )
                 self.application.client_lost(self.connection)
 
-            if 'text' in ws_msg:
-                fragment = ws_msg['text']
-            elif 'bytes' in ws_msg:
-                fragment = ws_msg['bytes']
+            if "text" in ws_msg:
+                fragment = ws_msg["text"]
+            elif "bytes" in ws_msg:
+                fragment = ws_msg["bytes"]
             else:
                 continue
 
@@ -258,7 +251,12 @@ class WSHandler(SessionHandler):
             except Exception as e:
                 # If you go look at self._receive, it's catching the
                 # expected error types... here we have something weird.
-                log.error("Unhandled exception receiving a message: %r: %r", e, fragment, exc_info=True)
+                log.error(
+                    "Unhandled exception receiving a message: %r: %r",
+                    e,
+                    fragment,
+                    exc_info=True,
+                )
                 self._internal_error("server failed to parse a message")
                 message = None
 
@@ -269,7 +267,12 @@ class WSHandler(SessionHandler):
                 if work:
                     await self.send_message(work)
             except Exception as e:
-                log.error("Handler or its work threw an exception: %r: %r", e, message, exc_info=True)
+                log.error(
+                    "Handler or its work threw an exception: %r: %r",
+                    e,
+                    message,
+                    exc_info=True,
+                )
                 self._internal_error("server failed to handle a message")
 
     def _internal_error(self, message: str) -> None:
@@ -283,7 +286,9 @@ class WSHandler(SessionHandler):
 
     async def _async_open(self, socket: WebSocket, token: str):
         session_id = get_session_id(token)
-        await self.application_context.create_session_if_needed(session_id, socket.scope, token)
+        await self.application_context.create_session_if_needed(
+            session_id, socket.scope, token
+        )
         session = self.application_context.get_session(session_id)
 
         protocol = Protocol()
@@ -297,22 +302,20 @@ class WSHandler(SessionHandler):
             protocol, self, self.application_context, session
         )
 
-        msg = self.connection.protocol.create('ACK')
+        msg = self.connection.protocol.create("ACK")
         await self.send_message(msg)
 
     def on_close(self, code: int, reason: str) -> None:
-        ''' Clean up when the connection is closed.
-
-        '''
-        log.info('WebSocket connection closed: code=%s, reason=%r', code, reason)
+        """Clean up when the connection is closed."""
+        log.info("WebSocket connection closed: code=%s, reason=%r", code, reason)
         if self.connection is not None:
             self.application.client_lost(self.connection)
 
-    async def send_text(self, text):
+    async def send_text(self, text: str) -> None:
         await self._socket.send_text(text)
-        
-    async def send_bytes(self, bytestream):
-        await self._socket.send_bytestream(bytestream)
+
+    async def send_bytes(self, bytestream: bytes):
+        await self._socket.send_bytes(bytestream)
 
     async def send_message(self, message: Message) -> int:
         sent = 0
@@ -326,7 +329,9 @@ class WSHandler(SessionHandler):
             await self._socket.send_text(message.content_json)
             sent += len(message.content_json)
 
-            for header, payload in message._buffers:
+            for header, payload in cast(
+                list[tuple[dict[str, Any], bytes]], message._buffers
+            ):
                 await self._socket.send_text(json.dumps(header))
                 await self._socket.send_bytes(payload)
                 sent += len(header) + len(payload)
