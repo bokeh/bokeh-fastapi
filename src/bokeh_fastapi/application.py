@@ -221,15 +221,6 @@ class BokehFastAPI:
             route = route if route.endswith("/") else f"{route}/"
             self.app.add_websocket_route(f"{route}ws", ws_handler.ws_connect)
 
-        @app.get(f"/{COMPONENT_PATH.rstrip('/')}" + "/{path:path}")
-        def get_component_resource(path: str) -> FileResponse:
-            # ComponentResourceHandler.parse_url_path only ever accesses
-            # self._resource_attrs, which fortunately is a class attribute. Thus, we can
-            # get away with using the method without actually instantiating the class
-            self_ = ComponentResourceHandler
-            resolved_path = ComponentResourceHandler.parse_url_path(self_, path)  # type: ignore[arg-type]
-            return FileResponse(resolved_path)
-
         # Mount static file handlers
         for ext_name, ext_path in extension_dirs.items():
             app.mount(
