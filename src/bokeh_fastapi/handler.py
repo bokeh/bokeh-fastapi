@@ -25,7 +25,6 @@ from bokeh.util.token import (
 )
 from fastapi import Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
-from panel.io.server import server_html_page_for_session
 from tornado.httputil import HTTPHeaders, HTTPServerRequest
 from tornado.ioloop import IOLoop
 
@@ -46,7 +45,7 @@ class SessionHandler:
         self.application_context = application_context
 
     async def get_session(
-        self, request: Request, session_id: Optional[str], token: Optional[str] = None
+        self, request: Request, session_id: Optional[str]
     ) -> ServerSession:
         app = self.application
         if session_id is None:
@@ -116,6 +115,9 @@ class DocHandler(SessionHandler):
         self, request: Request, bokeh_session_id: Optional[str] = None
     ) -> HTMLResponse:
         session = await self.get_session(request, bokeh_session_id)
+        # FIXME: this needs to be removed
+        from panel.io.server import server_html_page_for_session
+
         page = server_html_page_for_session(
             session,
             resources=self.application.resources(),
