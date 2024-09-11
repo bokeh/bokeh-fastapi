@@ -87,6 +87,22 @@ class BokehFastAPI:
         Number of milliseconds for unused session lifetime
         (default: {DEFAULT_UNUSED_LIFETIME_MS})
 
+    include_headers (list, optional) :
+            List of request headers to include in session context
+            (by default all headers are included)
+
+        exclude_headers (list, optional) :
+            List of request headers to exclude in session context
+            (by default all headers are included)
+
+        include_cookies (list, optional) :
+            List of cookies to include in session context
+            (by default all cookies are included)
+
+        exclude_cookies (list, optional) :
+            List of cookies to exclude in session context
+            (by default all cookies are included)
+
     session_token_expiration (int, optional) :
         Duration in seconds that a new session token is valid
         for session creation. After the expiry time has elapsed,
@@ -105,6 +121,10 @@ class BokehFastAPI:
         keep_alive_milliseconds: int = DEFAULT_KEEP_ALIVE_MS,
         check_unused_sessions_milliseconds: int = DEFAULT_CHECK_UNUSED_MS,
         unused_session_lifetime_milliseconds: int = DEFAULT_UNUSED_LIFETIME_MS,
+        include_headers: list[str] | None = None,
+        include_cookies: list[str] | None = None,
+        exclude_headers: list[str] | None = None,
+        exclude_cookies: list[str] | None = None,
     ):
         if callable(applications):
             applications = Application(FunctionHandler(applications))
@@ -174,6 +194,20 @@ class BokehFastAPI:
             unused_session_lifetime_milliseconds
         )
 
+        if exclude_cookies and include_cookies:
+            raise ValueError(
+                "Declare either an include or an exclude list for the cookies, not both."
+            )
+        self._exclude_cookies = exclude_cookies
+        self._include_cookies = include_cookies
+
+        if exclude_headers and include_headers:
+            raise ValueError(
+                "Declare either an include or an exclude list for the headers, not both."
+            )
+        self._exclude_headers = exclude_headers
+        self._include_headers = include_headers
+
         if websocket_origins is None:
             self._websocket_origins = set()
         else:
@@ -183,12 +217,6 @@ class BokehFastAPI:
         self._sign_sessions = sign_sessions
 
         self._clients: set[ServerConnection] = set()
-
-        # FIXME: handle keepalive and cleanup here
-        # self.app.router.lifespan_context = _merge_lifespan_context(
-        #     self.app.router.lifespan_context,
-        #     cleanup,
-        # )
 
         for route, ctx in self._applications.items():
             doc_handler = DocumentHandler(self, application_context=ctx)
@@ -246,6 +274,30 @@ class BokehFastAPI:
 
         """
         return self._secret_key
+
+    @property
+    def include_cookies(self) -> list[str] | None:
+        """A list of request cookies to make available in the session
+        context.
+        """
+        return self._include_cookies
+
+    @property
+    def include_headers(self) -> list[str] | None:
+        """A list of request headers to make available in the session
+        context.
+        """
+        return self._include_headers
+
+    @property
+    def exclude_cookies(self) -> list[str] | None:
+        """A list of request cookies to exclude in the session context."""
+        return self._exclude_cookies
+
+    @property
+    def exclude_headers(self) -> list[str] | None:
+        """A list of request headers to exclude in the session context."""
+        return self._exclude_headers
 
     @property
     def sign_sessions(self) -> bool:

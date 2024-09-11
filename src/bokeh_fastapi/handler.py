@@ -65,7 +65,29 @@ class SessionHandler:
         headers = dict(request.headers)
         cookies = dict(request.cookies)
 
-        if cookies and "Cookie" in headers:
+        if app.include_headers is None:
+            excluded_headers = app.exclude_headers or []
+            allowed_headers = [
+                header for header in headers if header not in excluded_headers
+            ]
+        else:
+            allowed_headers = app.include_headers
+        headers = {k: v for k, v in headers.items() if k in allowed_headers}
+
+        if app.include_cookies is None:
+            excluded_cookies = app.exclude_cookies or []
+            allowed_cookies = [
+                cookie for cookie in cookies if cookie not in excluded_cookies
+            ]
+        else:
+            allowed_cookies = app.include_cookies
+        cookies = {k: v for k, v in cookies.items() if k in allowed_cookies}
+
+        if (
+            cookies
+            and "Cookie" in headers
+            and "Cookie" not in (app.include_headers or [])
+        ):
             # Do not include Cookie header since cookies can be restored from cookies dict
             del headers["Cookie"]
 
