@@ -17,8 +17,6 @@ from bokeh.settings import settings
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from panel.io.resources import COMPONENT_PATH
-from panel.io.server import ComponentResourceHandler
 import bokeh.server.views.ws
 
 from .handler import DocumentHandler, WSHandler
