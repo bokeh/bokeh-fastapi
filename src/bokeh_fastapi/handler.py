@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-__all__ = ["WSHandler", "DocumentHandler"]
+__all__ = ["WSHandler", "DocHandler"]
 
 
 class SessionHandler:
@@ -111,7 +111,7 @@ class SessionHandler:
         return session
 
 
-class DocumentHandler(SessionHandler):
+class DocHandler(SessionHandler):
     async def get(
         self, request: Request, bokeh_session_id: Optional[str] = None
     ) -> HTMLResponse:

@@ -18,7 +18,7 @@ from bokeh.settings import settings
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from .handler import DocumentHandler, WSHandler
+from .handler import DocHandler, WSHandler
 
 if TYPE_CHECKING:
     from bokeh.application.handlers.function import ModifyDoc
@@ -214,7 +214,7 @@ class BokehFastAPI:
         self._clients: set[ServerConnection] = set()
 
         for route, ctx in self._applications.items():
-            doc_handler = DocumentHandler(self, application_context=ctx)
+            doc_handler = DocHandler(self, application_context=ctx)
             self.app.add_api_route(f"{route}", doc_handler.get, methods=["GET"])
             ws_handler = WSHandler(self, application_context=ctx)
             route = route if route.endswith("/") else f"{route}/"
