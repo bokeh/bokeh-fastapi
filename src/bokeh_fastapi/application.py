@@ -27,7 +27,6 @@ if TYPE_CHECKING:
     from bokeh.application.handlers.function import ModifyDoc
     from bokeh.protocol import Protocol
 
-
 log = logging.getLogger(__name__)
 
 DEFAULT_CHECK_UNUSED_MS = 17000
@@ -35,7 +34,6 @@ DEFAULT_KEEP_ALIVE_MS = (
     37000  # heroku, nginx default to 60s timeout, so use less than that
 )
 DEFAULT_UNUSED_LIFETIME_MS = 15000
-DEFAULT_SESSION_TOKEN_EXPIRATION = 300
 
 __all__ = ["BokehFastAPI"]
 
@@ -55,8 +53,14 @@ class BokehFastAPI:
         When a connection comes in to a given path, the associate
         Application is used to generate a new document for the session.
 
+    app (FastAPI, optional) :
+        FastAPI app to serve the ``applications`` from.
+
     prefix (str, optional) :
         A URL prefix to use for all Bokeh server paths. (default: None)
+
+    websocket_origins (Sequence[str], optional) :
+        A set of websocket origins permitted to connect to this server.
 
     secret_key (str, optional) :
         A secret key for signing session IDs.
@@ -91,23 +95,17 @@ class BokehFastAPI:
             List of request headers to include in session context
             (by default all headers are included)
 
-        exclude_headers (list, optional) :
-            List of request headers to exclude in session context
-            (by default all headers are included)
+    exclude_headers (list, optional) :
+        List of request headers to exclude in session context
+        (by default all headers are included)
 
-        include_cookies (list, optional) :
-            List of cookies to include in session context
-            (by default all cookies are included)
+    include_cookies (list, optional) :
+        List of cookies to include in session context
+        (by default all cookies are included)
 
-        exclude_cookies (list, optional) :
-            List of cookies to exclude in session context
-            (by default all cookies are included)
-
-    session_token_expiration (int, optional) :
-        Duration in seconds that a new session token is valid
-        for session creation. After the expiry time has elapsed,
-        the token will not be able create a new session
-        (default: {DEFAULT_SESSION_TOKEN_EXPIRATION})
+    exclude_cookies (list, optional) :
+        List of cookies to exclude in session context
+        (by default all cookies are included)
     """
 
     def __init__(
@@ -264,7 +262,7 @@ class BokehFastAPI:
 
     @property
     def websocket_origins(self) -> set[str]:
-        """A list of websocket origins permitted to connect to this server."""
+        """A set of websocket origins permitted to connect to this server."""
         return self._websocket_origins
 
     @property
