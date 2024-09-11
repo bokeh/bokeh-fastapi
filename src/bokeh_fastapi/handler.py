@@ -17,6 +17,7 @@ from bokeh.server.session import ServerSession
 from bokeh.server.util import check_allowlist
 from bokeh.settings import settings
 from bokeh.util.token import (
+    ID,
     check_token_signature,
     generate_jwt_token,
     generate_session_id,
@@ -45,7 +46,7 @@ class SessionHandler:
         self.application_context = application_context
 
     async def get_session(
-        self, request: Request, session_id: Optional[str]
+        self, request: Request, session_id: Optional[ID]
     ) -> ServerSession:
         app = self.application
         if session_id is None:
@@ -112,7 +113,7 @@ class SessionHandler:
 
 class DocHandler(SessionHandler):
     async def get(
-        self, request: Request, bokeh_session_id: Optional[str] = None
+        self, request: Request, bokeh_session_id: Optional[ID] = None
     ) -> HTMLResponse:
         session = await self.get_session(request, bokeh_session_id)
         # FIXME: this needs to be removed
@@ -157,7 +158,7 @@ class WSHandler(SessionHandler):
 
         allowed_hosts = self.application.websocket_origins
         if settings.allowed_ws_origin():
-            allowed_hosts = set(settings.allowed_ws_origin())
+            allowed_hosts = settings.allowed_ws_origin()
 
         allowed = check_allowlist(origin_host, allowed_hosts)
         if allowed:
@@ -182,7 +183,7 @@ class WSHandler(SessionHandler):
         else:
             subprotocol = None
         if subprotocol != "bokeh" or token is None:
-            websocket.close()
+            await websocket.close()
             raise RuntimeError(
                 "Subprotocol header is not 'bokeh' or token not provided"
             )
@@ -190,10 +191,10 @@ class WSHandler(SessionHandler):
         now = calendar.timegm(dt.datetime.now(tz=dt.timezone.utc).timetuple())
         payload = get_token_payload(token)
         if "session_expiry" not in payload:
-            websocket.close()
+            await websocket.close()
             raise RuntimeError("Session expiry has not been provided")
         elif now >= payload["session_expiry"]:
-            websocket.close()
+            await websocket.close()
             raise RuntimeError("Token is expired.")
         elif not check_token_signature(
             token,
@@ -228,7 +229,7 @@ class WSHandler(SessionHandler):
             message = await self.receiver.consume(fragment)
             return message
         except (MessageError, ProtocolError, ValidationError) as e:
-            self._protocol_error(str(e))
+            await self._protocol_error(str(e))
             return None
 
     async def _handle(self, message: Message[Any]) -> Optional[Any]:
@@ -241,14 +242,14 @@ class WSHandler(SessionHandler):
             ProtocolError,
             ValidationError,
         ) as e:  # TODO (other exceptions?)
-            self._internal_error(str(e))
+            await self._internal_error(str(e))
             return None
 
     async def _schedule(self, work: Any) -> None:
         if isinstance(work, Message):
-            await self.send_message(cast(Message[Any], work))
+            await self.send_message(work)
         else:
-            self._internal_error(f"expected a Message not {work!r}")
+            await self._internal_error(f"expected a Message not {work!r}")
 
         return None
 
@@ -280,7 +281,7 @@ class WSHandler(SessionHandler):
                     fragment,
                     exc_info=True,
                 )
-                self._internal_error("server failed to parse a message")
+                await self._internal_error("server failed to parse a message")
                 message = None
 
             if not message:
@@ -296,18 +297,18 @@ class WSHandler(SessionHandler):
                     message,
                     exc_info=True,
                 )
-                self._internal_error("server failed to handle a message")
+                await self._internal_error("server failed to handle a message")
 
-    def _internal_error(self, message: str) -> None:
+    async def _internal_error(self, message: str) -> None:
         log.error("Bokeh Server internal error: %s, closing connection", message)
-        self._socket.close(10000, message)
+        await self._socket.close(10000, message)
         self.on_close(10000, message)
 
-    def _protocol_error(self, message: str) -> None:
+    async def _protocol_error(self, message: str) -> None:
         log.error("Bokeh Server protocol error: %s, closing connection", message)
-        self._socket.close(10001, message)
+        await self._socket.close(10001, message)
 
-    async def _async_open(self, socket: WebSocket, token: str):
+    async def _async_open(self, socket: WebSocket, token: str) -> None:
         session_id = get_session_id(token)
         await self.application_context.create_session_if_needed(
             session_id, socket.scope, token
@@ -337,7 +338,7 @@ class WSHandler(SessionHandler):
     async def send_text(self, text: str) -> None:
         await self._socket.send_text(text)
 
-    async def send_bytes(self, bytestream: bytes):
+    async def send_bytes(self, bytestream: bytes) -> None:
         await self._socket.send_bytes(bytestream)
 
     async def send_message(self, message: Message) -> int:

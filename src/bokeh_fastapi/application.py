@@ -218,9 +218,9 @@ class BokehFastAPI:
         self._include_headers = include_headers
 
         if websocket_origins is None:
-            self._websocket_origins = set()
+            self._websocket_origins = []
         else:
-            self._websocket_origins = set(websocket_origins)
+            self._websocket_origins = list(set(websocket_origins))
 
         self._secret_key = secret_key
         self._sign_sessions = sign_sessions
@@ -313,7 +313,7 @@ class BokehFastAPI:
         connection.detach_session()
 
     @property
-    def websocket_origins(self) -> set[str]:
+    def websocket_origins(self) -> list[str]:
         """A set of websocket origins permitted to connect to this server."""
         return self._websocket_origins
 
