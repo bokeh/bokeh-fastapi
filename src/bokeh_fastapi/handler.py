@@ -26,9 +26,8 @@ from bokeh.util.token import (
 from fastapi import Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from panel.io.server import server_html_page_for_session
+from tornado.httputil import HTTPHeaders, HTTPServerRequest
 from tornado.ioloop import IOLoop
-from tornado.httputil import HTTPServerRequest, HTTPHeaders
-
 
 if TYPE_CHECKING:
     from .application import BokehFastAPI

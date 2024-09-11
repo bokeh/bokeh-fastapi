@@ -13,11 +13,10 @@ from bokeh.server.connection import ServerConnection
 from bokeh.server.contexts import ApplicationContext
 from bokeh.server.session import ServerSession
 from bokeh.server.views.static_handler import StaticHandler
+from bokeh.server.views.ws import WSHandler as BokehWSHandler
 from bokeh.settings import settings
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-import bokeh.server.views.ws
 
 from .handler import DocumentHandler, WSHandler
 
@@ -240,7 +239,7 @@ class BokehFastAPI:
         session: ServerSession,
     ) -> ServerConnection:
         # Duck typing
-        socket = cast(bokeh.server.views.ws.WSHandler, socket)
+        socket = cast(BokehWSHandler, socket)
         connection = ServerConnection(protocol, socket, application_context, session)
         self._clients.add(connection)
         return connection
