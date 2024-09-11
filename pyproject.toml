@@ -1,28 +1,63 @@
 [build-system]
-requires = ["setuptools>=64", "setuptools-git-versioning", "wheel"]
+requires = [
+    "setuptools>=64",
+    "setuptools_scm[toml]>=8",
+]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "bokeh_fastapi"
-dynamic = ["version"]
-description = "A web application using Bokeh and FastAPI"
+description = "Compatibility layer between Bokeh and FastAPI"
 readme = "README.md"
-requires-python = ">=3.8"
 authors = [
     { name = "Philipp Rudiger", email = "prudiger@anaconda.com" },
     { name = "Philip Meier", email = "pmeier@quansight.com" },
 ]
-license = {file = "LICENSE.txt"}
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.68.0",
     "bokeh>=2.3.3",
 ]
+dynamic = ["version"]
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[project.urls]
+Repository = "https://github.com/bokeh/bokeh-fastapi"
 
-[project.optional-dependencies]
+[tool.setuptools_scm]
+write_to = "src/bokeh_fastapi/_version.py"
+version_scheme = "release-branch-semver"
+local_scheme = "node-and-date"
 
-serve = [
-    "uvicorn>=0.15.0",
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    # import sorting
+    "I001"
 ]
+# Ignore line too long, because due to ruff, the error can only occur for strings
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# ignore unused imports and imports not at the top of the file in __init__.py files
+"__init__.py" = ["F401", "E402"]
+
+[tool.mypy]
+files = "src/bokeh_fastapi"
+
+show_error_codes = true
+pretty = true
+
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+allow_redefinition = true
+no_implicit_optional = true
+
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+warn_return_any = true
+warn_unused_configs = true
