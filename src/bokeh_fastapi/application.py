@@ -1,7 +1,18 @@
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import inspect
 import logging
-from typing import TYPE_CHECKING, Mapping, Sequence, cast
+from typing import (
+    TYPE_CHECKING,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Mapping,
+    Sequence,
+    cast,
+)
 from urllib.parse import urljoin
 
 from bokeh.application import Application
@@ -16,7 +27,10 @@ from bokeh.server.views.static_handler import StaticHandler
 from bokeh.server.views.ws import WSHandler as BokehWSHandler
 from bokeh.settings import settings
 from fastapi import FastAPI
+from fastapi.routing import _merge_lifespan_context
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
+from fastapi.websockets import WebSocketDisconnect
 
 from .handler import DocHandler, WSHandler
 
@@ -213,6 +227,42 @@ class BokehFastAPI:
 
         self._clients: set[ServerConnection] = set()
 
+        @contextlib.asynccontextmanager
+        async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+            async def schedule(
+                fn: Callable[[], None] | Callable[[], Awaitable[None]], period: float
+            ) -> None:
+                if inspect.iscoroutinefunction(fn):
+                    fn = cast(Callable[[], Awaitable[None]], fn)
+                    coro_fn = fn
+                else:
+                    fn = cast(Callable[[], None], fn)
+
+                    async def coro_fn() -> None:
+                        return await run_in_threadpool(fn)
+
+                while True:
+                    await asyncio.sleep(period)
+                    await coro_fn()
+
+            tasks = [
+                asyncio.create_task(schedule(fn, period))
+                for fn, period in [
+                    (self._keep_alive, keep_alive_milliseconds / 1000),
+                    (self._cleanup_sessions, check_unused_sessions_milliseconds / 1000),
+                ]
+            ]
+
+            yield None
+
+            for task in tasks:
+                task.cancel()
+
+        self.app.router.lifespan_context = _merge_lifespan_context(
+            self.app.router.lifespan_context,
+            lifespan,
+        )
+
         for route, ctx in self._applications.items():
             doc_handler = DocHandler(self, application_context=ctx)
             self.app.add_api_route(f"{route}", doc_handler.get, methods=["GET"])
@@ -230,6 +280,20 @@ class BokehFastAPI:
         app.mount(
             "/static", StaticFiles(directory=settings.bokehjs_path()), name="static"
         )
+
+    def _keep_alive(self) -> None:
+        log.trace("Running keep alive job")  # type: ignore[attr-defined]
+        for c in list(self._clients):
+            try:
+                c.send_ping()
+            except WebSocketDisconnect:
+                self.client_lost(c)
+
+    async def _cleanup_sessions(self) -> None:
+        log.trace("Running session cleanup job")  # type: ignore[attr-defined]
+        for app in self._applications.values():
+            await app._cleanup_sessions(self._unused_session_lifetime_milliseconds)
+        return None
 
     def new_connection(
         self,
