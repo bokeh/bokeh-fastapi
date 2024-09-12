@@ -30,6 +30,7 @@ from fastapi import FastAPI
 from fastapi.routing import _merge_lifespan_context
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
+from starlette.types import AppType, Lifespan
 from fastapi.websockets import WebSocketDisconnect
 
 from .handler import DocHandler, WSHandler
@@ -47,6 +48,23 @@ DEFAULT_KEEP_ALIVE_MS = (
 DEFAULT_UNUSED_LIFETIME_MS = 15000
 
 __all__ = ["BokehFastAPI"]
+
+
+def _merge_lifespan_context(
+    original_context: Lifespan[Any], nested_context: Lifespan[Any]
+) -> Lifespan[Any]:
+    @contextlib.asynccontextmanager
+    async def merged_lifespan(
+        app: AppType,
+    ) -> AsyncIterator[Optional[Mapping[str, Any]]]:
+        async with original_context(app) as maybe_original_state:
+            async with nested_context(app) as maybe_nested_state:
+                if maybe_nested_state is None and maybe_original_state is None:
+                    yield None  # old ASGI compatibility
+                else:
+                    yield {**(maybe_nested_state or {}), **(maybe_original_state or {})}
+
+    return merged_lifespan  # type: ignore[return-value]
 
 
 class BokehFastAPI:
