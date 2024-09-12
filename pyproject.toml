@@ -17,6 +17,7 @@ license = {file = "LICENSE"}
 requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.68.0",
+    "starlette",
     "bokeh>=2.3.3",
 ]
 dynamic = ["version"]

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
-from typing import TYPE_CHECKING, Mapping, Sequence, cast
+from typing import TYPE_CHECKING, Any, AsyncIterator, Mapping, Sequence, cast
 from urllib.parse import urljoin
 
 from bokeh.application import Application
@@ -17,6 +19,7 @@ from bokeh.server.views.ws import WSHandler as BokehWSHandler
 from bokeh.settings import settings
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from starlette.types import AppType, Lifespan
 
 from .handler import DocHandler, WSHandler
 
@@ -33,6 +36,25 @@ DEFAULT_KEEP_ALIVE_MS = (
 DEFAULT_UNUSED_LIFETIME_MS = 15000
 
 __all__ = ["BokehFastAPI"]
+
+
+# Vendored from fastapi.routing._merge_lifespan_context
+# https://github.com/fastapi/fastapi/blob/d00af00d3f15e9a963e2f1baf8f9b4c8357f6f66/fastapi/routing.py#L124-L138
+def _merge_lifespan_context(
+    original_context: Lifespan[Any], nested_context: Lifespan[Any]
+) -> Lifespan[Any]:
+    @contextlib.asynccontextmanager
+    async def merged_lifespan(
+        app: AppType,
+    ) -> AsyncIterator[Mapping[str, Any] | None]:
+        async with original_context(app) as maybe_original_state:
+            async with nested_context(app) as maybe_nested_state:
+                if maybe_nested_state is None and maybe_original_state is None:
+                    yield None  # old ASGI compatibility
+                else:
+                    yield {**(maybe_nested_state or {}), **(maybe_original_state or {})}
+
+    return merged_lifespan  # type: ignore[return-value]
 
 
 class BokehFastAPI:
@@ -213,6 +235,19 @@ class BokehFastAPI:
 
         self._clients: set[ServerConnection] = set()
 
+        self._cleanup_timeout = check_unused_sessions_milliseconds / 1000
+
+        @contextlib.asynccontextmanager
+        async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+            task = asyncio.create_task(self._cleanup_loop())
+            yield None
+            task.cancel()
+
+        self.app.router.lifespan_context = _merge_lifespan_context(
+            self.app.router.lifespan_context,
+            lifespan,
+        )
+
         for route, ctx in self._applications.items():
             doc_handler = DocHandler(self, application_context=ctx)
             self.app.add_api_route(f"{route}", doc_handler.get, methods=["GET"])
@@ -230,6 +265,16 @@ class BokehFastAPI:
         app.mount(
             "/static", StaticFiles(directory=settings.bokehjs_path()), name="static"
         )
+
+    async def _cleanup_loop(self) -> None:
+        while True:
+            await asyncio.sleep(self._cleanup_timeout)
+            await self._cleanup_sessions()
+
+    async def _cleanup_sessions(self) -> None:
+        log.trace("Running session cleanup job")  # type: ignore[attr-defined]
+        for app in self._applications.values():
+            await app._cleanup_sessions(self._unused_session_lifetime_milliseconds)
 
     def new_connection(
         self,
