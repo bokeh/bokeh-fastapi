@@ -7,6 +7,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Optional, cast
 from urllib.parse import urlparse
 
+from bokeh.embed.server import server_html_page_for_session
 from bokeh.protocol import Protocol
 from bokeh.protocol.exceptions import MessageError, ProtocolError, ValidationError
 from bokeh.protocol.message import Message
@@ -112,14 +113,14 @@ class SessionHandler:
 
 
 class DocHandler(SessionHandler):
+
+    render_session = server_html_page_for_session
+
     async def get(
         self, request: Request, bokeh_session_id: Optional[ID] = None
     ) -> HTMLResponse:
         session = await self.get_session(request, bokeh_session_id)
-        # FIXME: this needs to be removed
-        from panel.io.server import server_html_page_for_session
-
-        page = server_html_page_for_session(
+        page = self.render_session(
             session,
             resources=self.application.resources(),
             title=session.document.title,
