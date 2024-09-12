@@ -354,10 +354,10 @@ class WSHandler(SessionHandler):
             await self._socket.send_text(message.content_json)
             sent += len(message.content_json)
 
-            for header, payload in cast(
-                list[tuple[dict[str, Any], bytes]], message._buffers
-            ):
-                await self._socket.send_text(json.dumps(header))
+            for buff in message._buffers:
+                header = json.dumps(buff.ref)
+                payload = buff.to_bytes()
+                await self._socket.send_text(header)
                 await self._socket.send_bytes(payload)
                 sent += len(header) + len(payload)
         except WebSocketDisconnect as e:
