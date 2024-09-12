@@ -120,7 +120,7 @@ class DocHandler(SessionHandler):
         self, request: Request, bokeh_session_id: Optional[ID] = None
     ) -> HTMLResponse:
         session = await self.get_session(request, bokeh_session_id)
-        page = DocHandler.render_session(
+        page = type(self).render_session(
             session,
             resources=self.application.resources(),
             title=session.document.title,
