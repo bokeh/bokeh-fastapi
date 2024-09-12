@@ -2,17 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import inspect
 import logging
-from typing import (
-    TYPE_CHECKING,
-    AsyncIterator,
-    Awaitable,
-    Callable,
-    Mapping,
-    Sequence,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, AsyncIterator, Mapping, Sequence, cast
 from urllib.parse import urljoin
 
 from bokeh.application import Application
@@ -27,11 +18,8 @@ from bokeh.server.views.static_handler import StaticHandler
 from bokeh.server.views.ws import WSHandler as BokehWSHandler
 from bokeh.settings import settings
 from fastapi import FastAPI
-from fastapi.routing import _merge_lifespan_context
 from fastapi.staticfiles import StaticFiles
-from starlette.concurrency import run_in_threadpool
 from starlette.types import AppType, Lifespan
-from fastapi.websockets import WebSocketDisconnect
 
 from .handler import DocHandler, WSHandler
 
@@ -50,13 +38,15 @@ DEFAULT_UNUSED_LIFETIME_MS = 15000
 __all__ = ["BokehFastAPI"]
 
 
+# Vendored from fastapi.routing._merge_lifespan_context
+# https://github.com/fastapi/fastapi/blob/d00af00d3f15e9a963e2f1baf8f9b4c8357f6f66/fastapi/routing.py#L124-L138
 def _merge_lifespan_context(
     original_context: Lifespan[Any], nested_context: Lifespan[Any]
 ) -> Lifespan[Any]:
     @contextlib.asynccontextmanager
     async def merged_lifespan(
         app: AppType,
-    ) -> AsyncIterator[Optional[Mapping[str, Any]]]:
+    ) -> AsyncIterator[Mapping[str, Any] | None]:
         async with original_context(app) as maybe_original_state:
             async with nested_context(app) as maybe_nested_state:
                 if maybe_nested_state is None and maybe_original_state is None:
@@ -276,7 +266,7 @@ class BokehFastAPI:
             "/static", StaticFiles(directory=settings.bokehjs_path()), name="static"
         )
 
-    async def _cleanup_loop(self):
+    async def _cleanup_loop(self) -> None:
         while True:
             await asyncio.sleep(self._cleanup_timeout)
             await self._cleanup_sessions()
@@ -285,7 +275,6 @@ class BokehFastAPI:
         log.trace("Running session cleanup job")  # type: ignore[attr-defined]
         for app in self._applications.values():
             await app._cleanup_sessions(self._unused_session_lifetime_milliseconds)
-        return None
 
     def new_connection(
         self,
