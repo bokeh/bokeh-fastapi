@@ -362,6 +362,3 @@ class WSHandler(SessionHandler):
         except WebSocketDisconnect as e:
             self.on_close(e.code, e.reason)
         return sent
-
-    def ping(self, data: bytes | str = b"") -> None:
-        raise NotImplementedError

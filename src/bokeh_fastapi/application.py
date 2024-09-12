@@ -227,36 +227,13 @@ class BokehFastAPI:
 
         self._clients: set[ServerConnection] = set()
 
+        self._cleanup_timeout = check_unused_sessions_milliseconds / 1000
+
         @contextlib.asynccontextmanager
         async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-            async def schedule(
-                fn: Callable[[], None] | Callable[[], Awaitable[None]], period: float
-            ) -> None:
-                if inspect.iscoroutinefunction(fn):
-                    fn = cast(Callable[[], Awaitable[None]], fn)
-                    coro_fn = fn
-                else:
-                    fn = cast(Callable[[], None], fn)
-
-                    async def coro_fn() -> None:
-                        return await run_in_threadpool(fn)
-
-                while True:
-                    await asyncio.sleep(period)
-                    await coro_fn()
-
-            tasks = [
-                asyncio.create_task(schedule(fn, period))
-                for fn, period in [
-                    (self._keep_alive, keep_alive_milliseconds / 1000),
-                    (self._cleanup_sessions, check_unused_sessions_milliseconds / 1000),
-                ]
-            ]
-
+            task = asyncio.create_task(self._cleanup_loop())
             yield None
-
-            for task in tasks:
-                task.cancel()
+            task.cancel()
 
         self.app.router.lifespan_context = _merge_lifespan_context(
             self.app.router.lifespan_context,
@@ -281,13 +258,10 @@ class BokehFastAPI:
             "/static", StaticFiles(directory=settings.bokehjs_path()), name="static"
         )
 
-    def _keep_alive(self) -> None:
-        log.trace("Running keep alive job")  # type: ignore[attr-defined]
-        for c in list(self._clients):
-            try:
-                c.send_ping()
-            except WebSocketDisconnect:
-                self.client_lost(c)
+    async def _cleanup_loop(self):
+        while True:
+            await asyncio.sleep(self._cleanup_timeout)
+            await self._cleanup_sessions()
 
     async def _cleanup_sessions(self) -> None:
         log.trace("Running session cleanup job")  # type: ignore[attr-defined]
