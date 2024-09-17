@@ -29,33 +29,7 @@ runs:
         # Display conda info
         conda info
 
-    - id: install
-      shell: bash -el {0}
-      run: |
-        # Install bokeh-fastapi
-        which pip
-        echo '#########'
-        pip -V
-        echo '#########'
-        conda install pip
-        echo '#########'
-        which pip
-        echo '#########'
-        pip -V
-        echo '#########'
-        pip install .
-        exit 1
-        BOKEH_VERSION=$(conda list --json | jq --raw-output '.[] | select(.name=="bokeh").version')
-        echo "bokeh-version=${BOKEH_VERSION}" | tee --append "${GITHUB_OUTPUT}"
-
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        repository: bokeh/bokeh
-        path: ./tests/bokeh
-        ref: ${{ steps.install.outputs.bokeh-version }}
-
-#    - name: Restore conda environment
+    #    - name: Restore conda environment
 #      id: cache
 #      uses: actions/cache@v4
 #      with:
@@ -65,6 +39,22 @@ runs:
 #          }}|${{ hashFiles('environment-dev.yml', 'pyproject.toml') }}
 #        restore-keys: |
 #          env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}
+
+    - id: install
+      shell: bash -el {0}
+      run: |
+        # Install bokeh-fastapi
+        conda install pip
+        pip install .
+        BOKEH_VERSION=$(conda list --json | jq --raw-output '.[] | select(.name=="bokeh").version')
+        echo "bokeh-version=${BOKEH_VERSION}" | tee --append "${GITHUB_OUTPUT}"
+
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        repository: bokeh/bokeh
+        path: ./tests/bokeh
+        ref: ${{ steps.install.outputs.bokeh-version }}
 
     - # if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
