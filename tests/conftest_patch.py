@@ -34,22 +34,23 @@ def update_required_patches(modules):
 
 
 class BokehFastAPICompat(BokehFastAPI):
-    def __init__(self, *args, **kwargs):
-        kwargs["websocket_origins"] = kwargs.pop("extra_websocket_origins")
-        kwargs.pop("absolute_url", None)
-        kwargs.pop("index", None)
-        kwargs.pop("websocket_max_message_size_bytes", None)
-        kwargs.pop("extra_patterns", None)
-        super().__init__(*args, **kwargs)
-
-    def initialize(self, *args, **kwargs):
-        pass
-
-    def start(self, *args, **kwargs):
-        pass
-
-    def __call__(self, *args, **kwargs):
-        pass
+    pass
+    # def __init__(self, *args, **kwargs):
+    #     kwargs["websocket_origins"] = kwargs.pop("extra_websocket_origins")
+    #     kwargs.pop("absolute_url", None)
+    #     kwargs.pop("index", None)
+    #     kwargs.pop("websocket_max_message_size_bytes", None)
+    #     kwargs.pop("extra_patterns", None)
+    #     super().__init__(*args, **kwargs)
+    #
+    # def initialize(self, *args, **kwargs):
+    #     pass
+    #
+    # def start(self, *args, **kwargs):
+    #     pass
+    #
+    # def __call__(self, *args, **kwargs):
+    #     pass
 
 
 @pytest.hookimpl(wrapper=True)
