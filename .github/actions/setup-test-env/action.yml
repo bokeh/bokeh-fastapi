@@ -33,6 +33,11 @@ runs:
       shell: bash -el {0}
       run: |
         # Install bokeh-fastapi
+        ls -la .
+        echo '#########'
+        cat pyproject.toml
+        echo '#########'
+        exit 1
         pip install .
         BOKEH_VERSION=$(conda list --json | jq --raw-output '.[] | select(.name=="bokeh").version')
         echo "bokeh-version=${BOKEH_VERSION}" | tee --append "${GITHUB_OUTPUT}"
