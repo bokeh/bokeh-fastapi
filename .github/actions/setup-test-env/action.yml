@@ -33,9 +33,15 @@ runs:
       shell: bash -el {0}
       run: |
         # Install bokeh-fastapi
-        ls -la .
+        which pip
         echo '#########'
-        cat pyproject.toml
+        pip -V
+        echo '#########'
+        conda install pip
+        echo '#########'
+        which pip
+        echo '#########'
+        pip -V
         echo '#########'
         pip install .
         exit 1
