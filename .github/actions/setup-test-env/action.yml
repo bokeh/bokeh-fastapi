@@ -23,6 +23,7 @@ runs:
       with:
         miniforge-version: latest
         activate-environment: bokeh-fastapi-test
+        python-version: ${{ inputs.python-version }}
 
     - shell: bash -el {0}
       run: |
