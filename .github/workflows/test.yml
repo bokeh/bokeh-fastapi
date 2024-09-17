@@ -31,4 +31,4 @@ jobs:
       - name: Create test cache
         if: steps.cache.outputs.cache-hit != 'true'
         working-directory: ./tests/bokeh
-        run: pytest || true
+        run: pytest tests/unit || true
