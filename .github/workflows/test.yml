@@ -29,7 +29,7 @@ jobs:
       - name: Create test cache
         if: steps.cache.outputs.cache-hit != 'true'
         working-directory: ./tests/bokeh
-        run: pytest tests/unit || true
+        run: pytest --no-header --no-summary --quiet --tb=no tests/unit || true
   run:
     needs:
       - detect-usage
@@ -57,4 +57,4 @@ jobs:
 
       - name: Run tests
         working-directory: ./tests/bokeh
-        run: pytest
+        run: pytest --tb=short
