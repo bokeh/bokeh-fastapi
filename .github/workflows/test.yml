@@ -15,6 +15,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup environment
+        id: setup
         uses: ./.github/actions/setup-test-env
 
       - name: Restore test cache
@@ -22,7 +23,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ./.bokeh_fastapi_cache
-          key: test-${{ runner.os }}-${{ runner.arch }}|${{}}-${{}}
+          key: test-${{ runner.os }}-${{ runner.arch }}|${{ steps.setup.outputs.python-version }}-${{ steps.setup.outputs.bokeh-version }}
           restore-keys: test-${{ runner.os }}-${{ runner.arch }}
 
       - name: Create test cache
