@@ -24,14 +24,15 @@ runs:
         miniforge-version: latest
         activate-environment: bokeh-fastapi-test
 
-    - name: Display conda info
-      shell: bash -el {0}
-      run: conda info
+    - shell: bash -el {0}
+      run: |
+        # Display conda info
+        conda info
 
-    - name: Install bokeh-fastapi
-      id: install
+    - id: install
       shell: bash -el {0}
       run: |
+        # Install bokeh-fastapi
         pip install .
         BOKEH_VERSION=$(conda list --json | jq --raw-output '.[] | select(.name=="bokeh").version')
         echo "bokeh-version=${BOKEH_VERSION}" | tee --append "${GITHUB_OUTPUT}"
@@ -54,16 +55,19 @@ runs:
 #        restore-keys: |
 #          env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}
 
-    - name: Update conda environment if necessary
-#      if: steps.cache.outputs.cache-hit != 'true'
+    - # if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
-      run: conda env update --name bokeh-fastapi-test --file ./tests/bokeh/conda/environment-test-${{ inputs.python-version }}.yml
+      run: |
+        # Update conda environment if necessary
+        conda env update --name bokeh-fastapi-test --file ./tests/bokeh/conda/environment-test-${{ inputs.python-version }}.yml
 
-    - name: Display development environment
-      shell: bash -el {0}
-      run: conda list
+    - shell: bash -el {0}
+      run: |
+        # Display test environment
+        conda list
 
-    - name: Apply test patches
-      shell: bash
+    - shell: bash
       working-directory: ./tests
-      run: ./setup.sh
+      run: |
+        # Apply test patches
+        ./setup.sh
