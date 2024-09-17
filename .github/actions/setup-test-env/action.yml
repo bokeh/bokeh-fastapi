@@ -1,0 +1,64 @@
+name: setup-test-env
+description: "Setup test environment"
+
+inputs:
+  python-version:
+    default: "3.10"
+    description: "Python version to test."
+
+runs:
+  using: composite
+
+  steps:
+    - name: Setup miniforge
+      uses: conda-incubator/setup-miniconda@v3
+      with:
+        miniforge-version: latest
+        activate-environment: bokeh-fastapi-test
+
+    - name: Display conda info
+      shell: bash -el {0}
+      run: conda info
+
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        repository: bokeh/bokeh
+        path: ./tests
+        fetch-tags: true
+
+#    - name: Restore conda environment
+#      id: cache
+#      uses: actions/cache@v4
+#      with:
+#        path: ${{ env.CONDA }}/envs
+#        key:
+#          env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version
+#          }}|${{ hashFiles('environment-dev.yml', 'pyproject.toml') }}
+#        restore-keys: |
+#          env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}
+
+    - name: Update conda environment if necessary
+#      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: conda env update --name bokeh-fastapi-test --file ./tests/bokeh/conda/environment-test-${{ inputs.python-version }}.yml
+
+    - name: Install bokeh-fastapi
+      shell: bash -el {0}
+      run: pip install .
+
+    - name: Display development environment
+      shell: bash -el {0}
+      run: conda list
+
+    - name: Checkout bokeh tests
+      shell: bash -el {0}
+      working-directory: ./tests/bokeh
+      run: |
+        BOKEH_VERSION=$(conda list --json | jq --raw-output '.[] | select(.name=="bokeh").version')
+        git checkout "${BOKEH_VERSION}"
+
+    - name: Apply test patches
+      shell: bash
+      working-directory: ./tests
+      run: ./setup.sh

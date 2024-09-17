@@ -1,5 +1,8 @@
 src/bokeh_fastapi/_version.py
 
+tests/bokeh
+.bokeh_fastapi_cache
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
