@@ -35,6 +35,16 @@ runs:
         path: ./tests
         fetch-tags: true
 
+    - name: Debug
+      shell: bash
+      run: |
+        ls -la .
+        echo '##################'
+        ls -la ./tests
+        echo '##################'
+        ls -la ./tests/bokeh
+        echo '##################'
+
 #    - name: Restore conda environment
 #      id: cache
 #      uses: actions/cache@v4
