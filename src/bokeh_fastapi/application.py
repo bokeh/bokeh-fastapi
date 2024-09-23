@@ -342,6 +342,10 @@ class BokehFastAPI:
     def resources(self, absolute_url: str | None = None) -> Resources:
         mode = settings.resources(default="server")
         if mode == "server":
+            if absolute_url is True:
+                absolute_url = self.app.root_path
+            if absolute_url is None or absolute_url is False:
+                absolute_url = "/"
             root_url = (
                 urljoin(absolute_url, self._prefix) if absolute_url else self._prefix
             )
