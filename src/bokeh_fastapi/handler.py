@@ -140,6 +140,13 @@ class WSHandler(SessionHandler):
         self.connection = None
         self._socket: WebSocket
 
+    @classmethod
+    def create_factory(cls, application: BokehFastAPI, application_context: ApplicationContext):
+        def create_handler(*args, **kwargs):
+            inst = cls(application, application_context)
+            return inst.ws_connect(*args, **kwargs)
+        return create_handler
+
     def check_origin(self, origin: str) -> bool:
         """Implement a check_origin policy for Tornado to call.
 
