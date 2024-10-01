@@ -251,9 +251,9 @@ class BokehFastAPI:
         for route, ctx in self._applications.items():
             doc_handler = DocHandler(self, application_context=ctx)
             self.app.add_api_route(f"{route}", doc_handler.get, methods=["GET"])
-            ws_handler = WSHandler(self, application_context=ctx)
+            ws_handler = WSHandler.create_factory(self, application_context=ctx)
             route = route if route.endswith("/") else f"{route}/"
-            self.app.add_websocket_route(f"{route}ws", ws_handler.ws_connect)
+            self.app.add_websocket_route(f"{route}ws", ws_handler)
 
         # Mount static file handlers
         for ext_name, ext_path in extension_dirs.items():
