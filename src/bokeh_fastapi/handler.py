@@ -63,7 +63,7 @@ class SessionHandler:
         )
 
         headers = dict(request.headers)
-        cookies = {name: cookie.value for name, cookie in request.cookies}
+        cookies = {name: cookie.value for name, cookie in request.cookies.items()}
 
         if app.include_headers is None:
             excluded_headers = app.exclude_headers or []
