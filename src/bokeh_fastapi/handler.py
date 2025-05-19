@@ -7,6 +7,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Optional, cast
 from urllib.parse import urlparse
 
+import tornado
 from bokeh.embed.server import server_html_page_for_session
 from bokeh.protocol import Protocol
 from bokeh.protocol.exceptions import MessageError, ProtocolError, ValidationError
@@ -55,11 +56,16 @@ class SessionHandler:
                 secret_key=app.secret_key, signed=app.sign_sessions
             )
 
+        request_kwargs = {}
+        if tornado.version_info < (6, 5, 0):
+            # Compatibility with changes made in Tornado 6.5
+            # https://github.com/tornadoweb/tornado/pull/3487
+            request_kwargs["host"] = request.client.host
         request = HTTPServerRequest(
             method=request.method,
             uri=request.url.path,
             headers=HTTPHeaders(request.headers),
-            host=request.client.host,
+            **request_kwargs,
         )
 
         headers = dict(request.headers)
