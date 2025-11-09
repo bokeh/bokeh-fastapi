@@ -61,9 +61,10 @@ class SessionHandler:
             # Compatibility with changes made in Tornado 6.5
             # https://github.com/tornadoweb/tornado/pull/3487
             request_kwargs["host"] = request.client.host
+
         request = HTTPServerRequest(
             method=request.method,
-            uri=request.url.path,
+            uri=str(request.url),
             headers=HTTPHeaders(request.headers),
             **request_kwargs,
         )
