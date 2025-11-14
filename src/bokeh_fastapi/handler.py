@@ -4,10 +4,11 @@ import calendar
 import datetime as dt
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional
 from urllib.parse import urlparse
 
 import tornado
+from bokeh.core.types import ID
 from bokeh.embed.server import server_html_page_for_session
 from bokeh.protocol import Protocol
 from bokeh.protocol.exceptions import MessageError, ProtocolError, ValidationError
@@ -19,7 +20,6 @@ from bokeh.server.session import ServerSession
 from bokeh.server.util import check_allowlist
 from bokeh.settings import settings
 from bokeh.util.token import (
-    ID,
     check_token_signature,
     generate_jwt_token,
     generate_session_id,
