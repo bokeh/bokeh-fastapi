@@ -1,0 +1,75 @@
+name: setup-test-env
+description: "Setup test environment"
+
+inputs:
+  python-version:
+    default: "3.10"
+    description: "Python version to test."
+
+outputs:
+  python-version:
+    description: "Installed Python version."
+    value: ${{ inputs.python-version }}
+  bokeh-version:
+    description: "Installed bokeh version."
+    value: ${{ steps.install.outputs.bokeh-version }}
+
+runs:
+  using: composite
+
+  steps:
+    - name: Setup miniforge
+      uses: conda-incubator/setup-miniconda@v3
+      with:
+        miniforge-version: latest
+        activate-environment: bokeh-fastapi-test
+        python-version: ${{ inputs.python-version }}
+
+    - shell: bash -el {0}
+      run: |
+        # Display conda info
+        conda info
+
+    #    - name: Restore conda environment
+#      id: cache
+#      uses: actions/cache@v4
+#      with:
+#        path: ${{ env.CONDA }}/envs
+#        key:
+#          env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version
+#          }}|${{ hashFiles('environment-dev.yml', 'pyproject.toml') }}
+#        restore-keys: |
+#          env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}
+
+    - id: install
+      shell: bash -el {0}
+      run: |
+        # Install bokeh-fastapi
+        conda install pip
+        pip install .
+        BOKEH_VERSION=$(conda list --json | jq --raw-output '.[] | select(.name=="bokeh").version')
+        echo "bokeh-version=${BOKEH_VERSION}" | tee --append "${GITHUB_OUTPUT}"
+
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        repository: bokeh/bokeh
+        path: ./tests/bokeh
+        ref: ${{ steps.install.outputs.bokeh-version }}
+
+    - # if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        # Update conda environment if necessary
+        conda env update --name bokeh-fastapi-test --file ./tests/bokeh/conda/environment-test-${{ inputs.python-version }}.yml
+
+    - shell: bash -el {0}
+      run: |
+        # Display test environment
+        conda list
+
+    - shell: bash
+      working-directory: ./tests
+      run: |
+        # Apply test patches
+        ./setup.sh
