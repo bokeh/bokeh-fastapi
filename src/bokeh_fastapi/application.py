@@ -6,6 +6,7 @@ import logging
 from typing import TYPE_CHECKING, Any, AsyncIterator, Mapping, Sequence, cast
 from urllib.parse import urljoin
 
+import starlette
 from bokeh.application import Application
 from bokeh.application.handlers.document_lifecycle import DocumentLifecycleHandler
 from bokeh.application.handlers.function import FunctionHandler
@@ -19,6 +20,7 @@ from bokeh.server.views.ws import WSHandler as BokehWSHandler
 from bokeh.settings import settings
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from packaging.version import Version
 from starlette.types import AppType, Lifespan
 
 from .handler import DocHandler, WSHandler
@@ -34,6 +36,9 @@ DEFAULT_KEEP_ALIVE_MS = (
     37000  # heroku, nginx default to 60s timeout, so use less than that
 )
 DEFAULT_UNUSED_LIFETIME_MS = 15000
+
+_STARLETTE_VERSION = Version(starlette.__version__).release
+_STARLETTE_GE_1_0_0 = _STARLETTE_VERSION >= (1, 0, 0)
 
 __all__ = ["BokehFastAPI"]
 
@@ -253,7 +258,10 @@ class BokehFastAPI:
             self.app.add_api_route(f"{route}", doc_handler.get, methods=["GET"])
             ws_handler = WSHandler.create_factory(self, application_context=ctx)
             route = route if route.endswith("/") else f"{route}/"
-            self.app.add_websocket_route(f"{route}ws", ws_handler)
+            if _STARLETTE_GE_1_0_0:
+                self.app.add_api_websocket_route(f"{route}ws", ws_handler)
+            else:
+                self.app.add_websocket_route(f"{route}ws", ws_handler)
 
         # Mount static file handlers
         for ext_name, ext_path in extension_dirs.items():

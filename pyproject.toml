@@ -20,6 +20,7 @@ dependencies = [
     "bokeh>=2.3.3",
     "fastapi>=0.68.0",
     "starlette",
+    "packaging",
     "websockets>=10.4",
 ]
 dynamic = ["version"]
