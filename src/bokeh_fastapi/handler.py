@@ -149,9 +149,9 @@ class WSHandler(SessionHandler):
 
     @classmethod
     def create_factory(cls, application: BokehFastAPI, application_context: ApplicationContext):
-        def create_handler(*args, **kwargs):
+        def create_handler(websocket: WebSocket):
             inst = cls(application, application_context)
-            return inst.ws_connect(*args, **kwargs)
+            return inst.ws_connect(websocket)
         return create_handler
 
     def check_origin(self, origin: str) -> bool:
@@ -358,6 +358,8 @@ class WSHandler(SessionHandler):
 
     async def send_message(self, message: Message) -> int:
         sent = 0
+        if self._socket.application_state.name != "CONNECTED":
+            return sent
         try:
             await self._socket.send_text(message.header_json)
             sent += len(message.header_json)
