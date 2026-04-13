@@ -7,7 +7,7 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "bokeh_fastapi"
+name = "bokeh-fastapi"
 description = "Compatibility layer between Bokeh and FastAPI"
 readme = "README.md"
 authors = [
